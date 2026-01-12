@@ -19,8 +19,8 @@ A web application that translates Thai text to Chinese and generates speech usin
 
 ```bash
 # Clone the repository
-git clone https://github.com/Theme-P/TTS-Web-App-2.git
-cd TTS-Web-App-2
+git clone https://github.com/Theme-P/Thai-To-Chinese-TTS.git
+cd Thai-To-Chinese-TTS
 
 # Build and run
 docker-compose up --build
@@ -32,8 +32,8 @@ Open http://localhost:5001 in your browser.
 
 ```bash
 # Clone the repository
-git clone https://github.com/Theme-P/TTS-Web-App-2.git
-cd TTS-Web-App-2
+git clone https://github.com/Theme-P/Thai-To-Chinese-TTS.git
+cd Thai-To-Chinese-TTS
 
 # Install dependencies
 pip install -r requirements.txt
@@ -46,7 +46,7 @@ python app.py
 ## 📁 Project Structure
 
 ```
-TTS-Web-App-2/
+Thai-To-Chinese-TTS/
 ├── app.py                  # Flask application
 ├── translation_service.py  # Hybrid translation logic
 ├── melo_tts_service.py     # MeloTTS integration
