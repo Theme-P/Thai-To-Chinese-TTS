@@ -87,19 +87,23 @@ def convert():
     except TranslationError as e:
         return jsonify({'error': f'Translation failed: {str(e)}'}), 500
 
-    # 2. TTS with MeloTTS
+    # 2. TTS with MeloTTS (now returns MP3 or WAV with format indicator)
     try:
-         audio_bytes = tts_service.generate_speech(chinese_text, speed=speed)
+         audio_bytes, audio_format = tts_service.generate_speech(chinese_text, speed=speed)
          
-         # Convert audio bytes to base64 data URL
+         # Convert audio bytes to base64 data URL with correct MIME type
          audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
-         audio_data_url = f'data:audio/wav;base64,{audio_base64}'
+         
+         # Set MIME type based on actual format
+         mime_type = 'audio/mpeg' if audio_format == 'mp3' else 'audio/wav'
+         audio_data_url = f'data:{mime_type};base64,{audio_base64}'
          
          # Return result
          return jsonify({
              'thai': thai_text,
              'chinese': chinese_text,
              'audio_url': audio_data_url,
+             'audio_format': audio_format,  # 'mp3' or 'wav'
              'translator': mechanism,
              'tts_engine': 'MeloTTS',
              'speed': speed

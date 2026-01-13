@@ -4,3 +4,4 @@ deep-translator==1.11.4
 googletrans==4.0.0-rc1
 
 git+https://github.com/myshell-ai/MeloTTS.git
+pydub==0.25.1

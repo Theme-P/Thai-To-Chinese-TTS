@@ -7,14 +7,22 @@ Optimized with lazy loading and automatic cleanup
 import os
 import sys
 import io
+import tempfile
 from pathlib import Path
 
 # Fix OpenMP conflict on Windows
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Tuple
 
 from melo.api import TTS
+
+try:
+    from pydub import AudioSegment
+    PYDUB_AVAILABLE = True
+except ImportError:
+    PYDUB_AVAILABLE = False
+    print("Warning: pydub not available, MP3 conversion disabled")
 
 
 class MeloTTSService:
@@ -102,16 +110,16 @@ class MeloTTSService:
             _ = self.model
         return choice in self._voices
     
-    def generate_speech(self, text: str, speed: float = 1.0) -> bytes:
+    def generate_speech(self, text: str, speed: float = 1.0) -> Tuple[bytes, str]:
         """
-        Generate speech from Chinese text using MeloTTS.
+        Generate speech from Chinese text using MeloTTS, converted to MP3.
         
         Args:
             text: Chinese text to synthesize
             speed: Speech speed (0.5-2.0)
         
         Returns:
-            Audio data as bytes (WAV format)
+            Tuple of (audio_bytes, format) where format is 'mp3' or 'wav'
         """
         if not text.strip():
             raise TTSError("Text cannot be empty")
@@ -122,35 +130,66 @@ class MeloTTSService:
         # Use first (and only) Chinese speaker
         speaker_id = self._speaker_ids[self._speakers[0]]
         
-        # Create temporary file in memory
-        import tempfile
+        tmp_wav_path = None
+        tmp_mp3_path = None
+        
         try:
-            # Create a temporary file to capture MeloTTS output
+            # Create a temporary WAV file to capture MeloTTS output
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_file:
-                tmp_path = tmp_file.name
+                tmp_wav_path = tmp_file.name
             
-            # Generate speech with MeloTTS to temp file
+            # Generate speech with MeloTTS to temp WAV file
             model.tts_to_file(
                 text=text,
                 speaker_id=speaker_id,
-                output_path=tmp_path,
+                output_path=tmp_wav_path,
                 speed=speed,
                 quiet=True
             )
             
-            # Read the audio file into memory
-            with open(tmp_path, 'rb') as f:
-                audio_bytes = f.read()
+            # Try to convert WAV to MP3 using pydub
+            if PYDUB_AVAILABLE:
+                try:
+                    # Load WAV file
+                    audio = AudioSegment.from_wav(tmp_wav_path)
+                    
+                    # Create temporary MP3 file
+                    with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as tmp_file:
+                        tmp_mp3_path = tmp_file.name
+                    
+                    # Export as MP3 (bitrate 192k for good quality)
+                    audio.export(tmp_mp3_path, format='mp3', bitrate='192k')
+                    
+                    # Read MP3 file into memory
+                    with open(tmp_mp3_path, 'rb') as f:
+                        audio_bytes = f.read()
+                    
+                    audio_format = 'mp3'
+                    print("Successfully converted to MP3")
+                    
+                except Exception as conv_error:
+                    # Fallback to WAV if conversion fails (e.g., ffmpeg not installed)
+                    print(f"MP3 conversion failed ({conv_error}), falling back to WAV")
+                    with open(tmp_wav_path, 'rb') as f:
+                        audio_bytes = f.read()
+                    audio_format = 'wav'
+            else:
+                # Fallback to WAV if pydub not available
+                print("pydub not available, returning WAV format")
+                with open(tmp_wav_path, 'rb') as f:
+                    audio_bytes = f.read()
+                audio_format = 'wav'
             
-            # Clean up temp file
-            os.unlink(tmp_path)
+            return audio_bytes, audio_format
             
-            return audio_bytes
         except Exception as e:
-            # Clean up temp file on error
-            if 'tmp_path' in locals() and os.path.exists(tmp_path):
-                os.unlink(tmp_path)
             raise TTSError(f"Failed to generate speech: {e}")
+        finally:
+            # Clean up temp files
+            if tmp_wav_path and os.path.exists(tmp_wav_path):
+                os.unlink(tmp_wav_path)
+            if tmp_mp3_path and os.path.exists(tmp_mp3_path):
+                os.unlink(tmp_mp3_path)
     
     def shutdown(self):
         """Cleanup resources"""

@@ -60,10 +60,11 @@ async function convert() {
         audioPlayer.src = data.audio_url;
         audioPlayer.load();
 
-        // Update download link
+        // Update download link with correct format
         const downloadLink = document.getElementById('download-link');
+        const fileExtension = data.audio_format || 'mp3'; // Default to mp3
         downloadLink.href = data.audio_url;
-        downloadLink.download = `tts_output_${new Date().getTime()}.wav`;
+        downloadLink.download = `tts_output_${new Date().getTime()}.${fileExtension}`;
         downloadLink.classList.remove('hidden');
 
         // Show result section with smooth animation
